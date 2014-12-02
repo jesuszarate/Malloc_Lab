@@ -73,7 +73,6 @@ team_t team = {
 #define NEXT_BLKP(bp)  ((char*)(bp) + GET_SIZE(((char*)(bp) - WSIZE))) 
 #define PREV_BLKP(bp)  ((char*)(bp) - GET_SIZE(((char*)(bp) - DSIZE)))
 
-
 static char* heap_listp;
 
 static void* coalesce(void* bp) 
@@ -254,27 +253,62 @@ void *mm_realloc(void *ptr, size_t size)
     size_t old_size = GET_SIZE(HDRP(ptr));
     void *newptr;
     size_t copySize;
+    char* bp;
+    size_t extendsize; /* amount to extend heap if no fit */
 
     if(size == 0)
       {
 	mm_free(ptr);
 	return NULL;
       }
-
     if(ptr == NULL)
       {
 	newptr = mm_malloc(size);
       }
-    else if(prt != NULL)
+    else 
       {
-	newptr = mm_malloc(size);
-	if (newptr == NULL)
-	  return NULL;
+	/* Allocate the new larger size */
+	size_t asize; /* Adjusted block size */
+	
+	if(size <= 0)
+	  bp = NULL;
+
+	/* Adjust block size to include overhead and alignment requirements */
+	if(size <= DSIZE)
+	  asize = DSIZE + OVERHEAD;
+	else
+	  asize = DSIZE * ((size + (OVERHEAD) + (DSIZE-1)) / DSIZE);
+	
+	/* Search the free list for a fit */
+	if((bp = find_fit(asize)) != NULL)
+	  {
+	    place(bp, asize);
+	  }
+
+	/* If no fit found, get more memory and place block there */
+	else
+	  {
+	    extendsize = MAX(asize, CHUNKSIZE);
+	   
+	    if((bp = extend_heap(extendsize/WSIZE)) == NULL)
+	      return NULL;
+	    
+	    /* bp will be set the address of the new allocated larger block */
+	    place(bp, asize);
+	  }
+	newptr = bp;
+
 	copySize = old_size - SIZE_T_SIZE;
 	if (size < copySize)
 	  copySize = size;
 	memcpy(newptr, oldptr, copySize);
-	mm_free(oldptr);
+
+	/* Free the memory from the old block */
+	//mm_free(oldptr);
+	size_t size = GET_SIZE(HDRP(ptr));
+	PUT(HDRP(ptr), PACK(size, 0));
+	PUT(FTRP(ptr), PACK(size, 0));
+	coalesce(ptr);
       }
     return newptr;
 }
