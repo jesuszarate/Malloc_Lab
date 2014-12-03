@@ -72,8 +72,30 @@ team_t team = {
  /* Given block ptr bp, compute address of next and previous blocks */
 #define NEXT_BLKP(bp)  ((char*)(bp) + GET_SIZE(((char*)(bp) - WSIZE))) 
 #define PREV_BLKP(bp)  ((char*)(bp) - GET_SIZE(((char*)(bp) - DSIZE)))
-
+ 
 static char* heap_listp;
+
+int mm_check(void) 
+{
+  char* bp;
+  for(bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp))
+    {
+      /* Make sure header and footer have identical block sizes*/
+      if(GET_SIZE(HDRP(bp)) != GET_SIZE(FTRP(bp)))
+	{
+	  printf("Size of header and footer do not match");
+	  return 0;
+	}
+
+      if(GET_ALLOC(HDRP(bp)) != GET_ALLOC(FTRP(bp)))
+	{
+	  printf("Allocated bits are not the same");
+	  return 0;
+	}
+
+    }
+  return 1;
+}
 
 static void* coalesce(void* bp) 
 {
@@ -132,9 +154,9 @@ static void *extend_heap(size_t words)
 static void* find_fit(size_t asize) 
 {   
   void* bp;   
+
   /* first fit search */ 
-  for(bp = heap_listp; GET_SIZE(HDRP(bp)) > 0;
-      bp = NEXT_BLKP(bp)) 
+  for(bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) 
     {   
       if(!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp))))
 	{
@@ -331,7 +353,6 @@ void *mm_realloc(void *ptr, size_t size)
     return newptr;
 }
 */
-
 
 
 
