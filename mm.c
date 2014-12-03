@@ -54,10 +54,12 @@ team_t team = {
 #define CHUNKSIZE  (1<<12)  /* initial heap size (bytes) */ 
 #define OVERHEAD    8       /* overhead of header & footer (bytes) */ 
 
-#define MAX(x, y) ((x) > (y)? (x) : (y))   
+#define MAX(x, y) ((x) > (y) ? (x) : (y))   
 
 /* Pack a size and allocated bit into a word */ 
-#define PACK(size, alloc)  ((size) | (alloc)) /* Read and write a word at address p */ 
+#define PACK(size, alloc)  ((size) | (alloc))
+
+ /* Read and write a word at address p */ 
 #define GET(p)       (*(size_t*)(p))
 #define PUT(p, val)  (*(size_t*)(p) = (val))   
 
@@ -73,6 +75,11 @@ team_t team = {
 #define NEXT_BLKP(bp)  ((char*)(bp) + GET_SIZE(((char*)(bp) - WSIZE))) 
 #define PREV_BLKP(bp)  ((char*)(bp) - GET_SIZE(((char*)(bp) - DSIZE)))
  
+#define LIST_BLOCK_SIZE    20       /* The list sizes will be of 20 */
+
+/* Segregated free lists  */
+
+
 static char* heap_listp;
 
 int mm_check(void) 
@@ -93,8 +100,68 @@ int mm_check(void)
 	  return 0;
 	}
 
+      
+      if(!GET_ALLOC(HDRP(bp)))
+	{
+	  printf("Previous: %s\t", PREV_BLKP(bp));
+	  printf("Current: %s\t", HDRP(bp));
+	  printf("Next: %s\n", NEXT_BLKP(bp));
+	}
+      //printf("Header: %lu\t", GET_ALLOC(HDRP(bp)));
+      //printf("Footer: %lu\t", GET_ALLOC(FTRP(bp)));
+      //printf("Payload: %lu\n", GET_ALLOC(FTRP(bp)));
+      
     }
   return 1;
+}
+
+void add_to_free(void* bp)
+{
+  char* previous_block;
+  char* current_block;
+  char* next_block = NULL;
+
+  int size = GET_SIZE(HDRP(bp));
+
+  /* Size where the block should go */
+
+  int list_size = size / LIST_BLOCK_SIZE;
+  
+  /* Get the pointer to the first item on the list that fits */
+  current_block = (char*)GET(heap_listp + (list_size * WSIZE));/* TODO: MAKE MACRO */
+  
+  /* Walk through the list starting at current block and find a place where the block can fit */
+  for(; GET_SIZE(HDRP(bp)) > 0; current_block = NEXT_BLKP(current_block))
+  {
+    /* If the block is greater than the current_block get the block before it*/
+    if(GET_SIZE(current_block) >= size)
+    {
+      next_block = current_block;
+      break;
+    }    
+  }
+
+  /* Save previous block */
+  previous_block = PREV_BLKP(next_block);
+
+  /* Set next_block's previous block to be bp */
+  PUT(PREV_BLKP(next_block), (int)(bp));
+
+  /* Set previous_block's next block to be bp */
+  PUT(NEXT_BLKP(previous_block), (int)(bp));
+
+  /* Set bp's next to be next_block */
+  PUT(NEXT_BLKP(bp), (int)(next_block));
+
+  /* Set bp's previous to be previous_block */
+  PUT(PREV_BLKP(bp), (int)(previous_block));
+}
+
+void remove_from_free(void* bp)
+{
+  
+  
+
 }
 
 static void* coalesce(void* bp) 
@@ -103,7 +170,12 @@ static void* coalesce(void* bp)
   size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));   
   size_t size = GET_SIZE(HDRP(bp));    
 
-  if (prev_alloc && next_alloc) { return bp; }  
+  if (prev_alloc && next_alloc) 
+    {
+      add_to_free(bp);
+      mm_check(); 
+      return bp; 
+    }  
  
   else if (prev_alloc && !next_alloc) {
     size += GET_SIZE(HDRP(NEXT_BLKP(bp)));  
@@ -179,7 +251,7 @@ static void place(void* bp, size_t asize)
       PUT(FTRP(bp), PACK(csize-asize, 0));   
     }  
   else 
-    {                                      /* else, do not split */   
+    {                                            /* else, do not split */   
       PUT(HDRP(bp), PACK(csize, 1));  
       PUT(FTRP(bp), PACK(csize, 1)); 
     }
@@ -211,8 +283,8 @@ int mm_init(void)
 
 void* mm_malloc(size_t size) 
 {   
-  size_t asize;      /* adjusted block size */    
-  size_t extendsize; /* amount to extend heap if no fit */  
+  size_t asize;       /* adjusted block size */    
+  size_t extendsize;  /* amount to extend heap if no fit */  
   char* bp;           /* Ignore spurious requests */   
   if (size <= 0)
     return NULL;
@@ -235,6 +307,8 @@ void* mm_malloc(size_t size)
     return NULL;   
 
   place(bp, asize);   
+
+
   return bp;
 }
 
@@ -332,6 +406,7 @@ void *mm_realloc(void *ptr, size_t size)
 	PUT(FTRP(ptr), PACK(size, 0));
 	coalesce(ptr);
       }
+    //mm_check();
     return newptr;
 }
 
