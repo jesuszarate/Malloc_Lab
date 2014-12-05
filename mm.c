@@ -71,16 +71,33 @@ team_t team = {
 #define HDRP(bp)       ((char*)(bp) - WSIZE)  
 #define FTRP(bp)       ((char*)(bp) + GET_SIZE(HDRP(bp)) - DSIZE)
 
- /* Given block ptr bp, compute address of next and previous blocks */
+/* Given block ptr bp, compute address of next and previous blocks */
 #define NEXT_BLKP(bp)  ((char*)(bp) + GET_SIZE(((char*)(bp) - WSIZE))) 
 #define PREV_BLKP(bp)  ((char*)(bp) - GET_SIZE(((char*)(bp) - DSIZE)))
  
 #define LIST_BLOCK_SIZE    20       /* The list sizes will be of 20 */
 
+#define TAG          4
+
+//#define NEXT_FREE() 
+//#define PREV_FREE() 
+
+
+
 /* Segregated free lists  */
 
 
 static char* heap_listp;
+
+static unsigned int* free_list16;
+
+//static char* free_list0_64; 
+//static char* free_list65_128; 
+//static char* free_list129_256; 
+//static char* free_list257_512; 
+//static char* free_list513_1024; 
+//static char* free_list1025_2048; 
+//static char* free_list2049_4096; 
 
 int mm_check(void) 
 {
@@ -103,9 +120,9 @@ int mm_check(void)
       
       if(!GET_ALLOC(HDRP(bp)))
 	{
-	  printf("Previous: %s\t", PREV_BLKP(bp));
-	  printf("Current: %s\t", HDRP(bp));
-	  printf("Next: %s\n", NEXT_BLKP(bp));
+	  //printf("Previous: %s\t", PREV_BLKP(bp));
+	  //printf("Current: %s\t", HDRP(bp));
+	  //printf("Next: %s\n", NEXT_BLKP(bp));
 	}
       //printf("Header: %lu\t", GET_ALLOC(HDRP(bp)));
       //printf("Footer: %lu\t", GET_ALLOC(FTRP(bp)));
@@ -117,9 +134,45 @@ int mm_check(void)
 
 void add_to_free(void* bp)
 {
-  char* previous_block;
-  char* current_block;
-  char* next_block = NULL;
+  size_t size = GET_SIZE(bp);
+  
+  if(size > 0 && size <= 64)
+    {
+
+    }
+  else if(size > 64 && size <= 128)
+    {
+
+    }
+  else if(size > 128 && size <= 256)
+    {
+
+    }
+  else if(size > 256 && size <= 512)
+    {
+
+    }
+  else if(size > 512 && size <= 1024)
+    {
+
+    }
+  else if(size > 1024 && size <= 2048)
+    {
+
+    }
+  else
+    {
+      
+    }
+}
+
+ void add_to_list(void* bp)
+{
+  printf("here");
+  /* add to the end of the list */
+  void* previous_block;
+  void* current_block;
+  void* next_block = NULL;
 
   int size = GET_SIZE(HDRP(bp));
 
@@ -129,35 +182,65 @@ void add_to_free(void* bp)
   
   /* Get the pointer to the first item on the list that fits */
   current_block = (char*)GET(heap_listp + (list_size * WSIZE));/* TODO: MAKE MACRO */
-  
-  /* Walk through the list starting at current block and find a place where the block can fit */
-  for(; GET_SIZE(HDRP(bp)) > 0; current_block = NEXT_BLKP(current_block))
-  {
-    /* If the block is greater than the current_block get the block before it*/
-    if(GET_SIZE(current_block) >= size)
-    {
-      next_block = current_block;
-      break;
-    }    
+
+
+  //  for (; (int)temp_cur != 0 && GET_SIZE(HDRP(temp_cur)) < size; temp_cur = (char *)GET(temp_cur+WSIZE))
+  //temp_prev = temp_cur;
+
+  int csize = 0;
+
+
+
+  //if the free list is empty 
+  if(current_block == 0){
+    //set free list pointer to point to this block.
+    PUT(heap_listp + (list_size * WSIZE), (int)bp);	
+    //set this blocks previous free block poitner to 0 indicating it is first on the list.
+    PUT(bp, 0); 
+    //set this blocks next free block pointer to 0 indicating it is last on the list.  
+    PUT(bp+WSIZE, 0);
   }
 
+  
+  while((csize = GET_SIZE(HDRP(current_block))) > 0)
+    {
+      printf("csize: %d", csize);
+      if(csize != 0 && csize >= size)
+	{
+	  
+	}
+      current_block = (char *)GET(current_block + WSIZE);
+    }
+
+  /* Walk through the list starting at current block and find a place where the block can fit*/
+  //  for(; GET_SIZE(HDRP(bp)) > 0; current_block = NEXT_BLKP(current_block))
+  //  {
+    /* If the block is greater than the current_block get the block before it*/
+    //if(GET_SIZE(current_block) >= size)
+  //    {
+  //next_block = current_block;
+  //  break;
+      //}    
+      //  }
+
   /* Save previous block */
-  previous_block = PREV_BLKP(next_block);
+      //  previous_block = PREV_BLKP(next_block);
 
   /* Set next_block's previous block to be bp */
-  PUT(PREV_BLKP(next_block), (int)(bp));
+      //  PUT(PREV_BLKP(next_block), (int)(bp));
 
   /* Set previous_block's next block to be bp */
-  PUT(NEXT_BLKP(previous_block), (int)(bp));
+      //  PUT(NEXT_BLKP(previous_block), (int)(bp));
 
   /* Set bp's next to be next_block */
-  PUT(NEXT_BLKP(bp), (int)(next_block));
+      //  PUT(NEXT_BLKP(bp), (int)(next_block));
 
   /* Set bp's previous to be previous_block */
-  PUT(PREV_BLKP(bp), (int)(previous_block));
+      //  PUT(PREV_BLKP(bp), (int)(previous_block));
+  
 }
 
-void remove_from_free(void* bp)
+static void remove_from_free(void* bp)
 {
   
   
@@ -166,14 +249,16 @@ void remove_from_free(void* bp)
 
 static void* coalesce(void* bp) 
 {
+
   size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp))); 
   size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));   
   size_t size = GET_SIZE(HDRP(bp));    
 
   if (prev_alloc && next_alloc) 
     {
-      add_to_free(bp);
-      mm_check(); 
+      printf("here");
+      add_to_list(bp);
+      //mm_check(); 
       return bp; 
     }  
  
@@ -181,6 +266,8 @@ static void* coalesce(void* bp)
     size += GET_SIZE(HDRP(NEXT_BLKP(bp)));  
     PUT(HDRP(bp), PACK(size, 0));     
     PUT(FTRP(bp), PACK(size ,0)); 
+
+    add_to_free(bp);
     return(bp);
   }    
   else if (!prev_alloc && next_alloc) 
@@ -188,6 +275,8 @@ static void* coalesce(void* bp)
       size += GET_SIZE(HDRP(PREV_BLKP(bp)));
       PUT(FTRP(bp), PACK(size, 0));   
       PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));    
+
+      add_to_free(bp);
       return(PREV_BLKP(bp));
     }   
   else
@@ -196,6 +285,8 @@ static void* coalesce(void* bp)
 	GET_SIZE(FTRP(NEXT_BLKP(bp)));  
       PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));   
       PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));   
+
+      add_to_free(bp);
       return(PREV_BLKP(bp));
     } 
 }
@@ -257,11 +348,31 @@ static void place(void* bp, size_t asize)
     }
 }
 
+void splitList(unsigned int* list_ptr, int splitSize, int blockSize)
+{
+  /* Make sure block size is divisible by 4 */
+  int size = blockSize/(splitSize * 4);
+
+  int i = 0;
+  for(; i < size; i++)
+    {
+      *list_ptr = (int)((char*)list_ptr + size);
+    }
+
+}
+
+
 /* 
  * mm_init - initialize the malloc package.
  */
 int mm_init(void)
 {
+  //if((free_list16 = mem_sbrk(200)) != (void*)-1)
+  //{
+  //  splitList(free_list16, 16, 200);
+  //}
+
+
   /* create the initial empty heap – four words */    
   if ((heap_listp = mem_sbrk(4*WSIZE)) == NULL)
     return -1;
