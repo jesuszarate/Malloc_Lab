@@ -54,6 +54,10 @@ team_t team = {
 #define CHUNKSIZE  (1<<12)  /* initial heap size (bytes) */ 
 #define OVERHEAD    8       /* overhead of header & footer (bytes) */ 
 
+/* Sizes for the free allocation lists */
+#define TOTAL_SIZE  816
+#define FREE_SIZE   800
+
 #define MAX(x, y) ((x) > (y) ? (x) : (y))   
 
 /* Pack a size and allocated bit into a word */ 
@@ -75,31 +79,18 @@ team_t team = {
 #define NEXT_BLKP(bp)  ((char*)(bp) + GET_SIZE(((char*)(bp) - WSIZE))) 
 #define PREV_BLKP(bp)  ((char*)(bp) - GET_SIZE(((char*)(bp) - DSIZE)))
  
-#define LIST_BLOCK_SIZE    20       /* The list sizes will be of 20 */
+#define LIST_BLOCK_SIZE    50       /* The list sizes will be of 50 */
 
-#define TAG          4
-
-//#define NEXT_FREE() 
-//#define PREV_FREE() 
-
-
-
-/* Segregated free lists  */
-
+/* HERE */
+#define GET_LIST_SIZE(size)       ((size / LIST_BLOCK_SIZE) > (TOTAL_SIZE/DSIZE) ? (TOTAL_SIZE/DSIZE) : (size / LIST_BLOCK_SIZE))
+#define GET_LISTP(list_size)      ((char *)GET(heap_listp + (list_size * WSIZE)))
+//#define NEXT_FREE(current_block)  ((char *)GET(current_block+WSIZE))
+#define NEXT_FREE(current_block)  ((char *)GET(current_block+WSIZE))
+#define PREV_FREE(current_block)  ((char *)GET(current_block))
 
 static char* heap_listp;
 
-static unsigned int* free_list16;
-
-//static char* free_list0_64; 
-//static char* free_list65_128; 
-//static char* free_list129_256; 
-//static char* free_list257_512; 
-//static char* free_list513_1024; 
-//static char* free_list1025_2048; 
-//static char* free_list2049_4096; 
-
-int mm_check(void) 
+ int mm_check(void) 
 {
   char* bp;
   for(bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp))
@@ -134,117 +125,115 @@ int mm_check(void)
 
 void add_to_free(void* bp)
 {
-  size_t size = GET_SIZE(bp);
-  
-  if(size > 0 && size <= 64)
-    {
-
-    }
-  else if(size > 64 && size <= 128)
-    {
-
-    }
-  else if(size > 128 && size <= 256)
-    {
-
-    }
-  else if(size > 256 && size <= 512)
-    {
-
-    }
-  else if(size > 512 && size <= 1024)
-    {
-
-    }
-  else if(size > 1024 && size <= 2048)
-    {
-
-    }
-  else
-    {
-      
-    }
-}
-
- void add_to_list(void* bp)
-{
-  printf("here");
   /* add to the end of the list */
-  void* previous_block;
-  void* current_block;
-  void* next_block = NULL;
+  void *previous_block;
+  void *current_block;
+  void *next_block = NULL;
 
   int size = GET_SIZE(HDRP(bp));
 
   /* Size where the block should go */
 
-  int list_size = size / LIST_BLOCK_SIZE;
+  //int list_size = (size / LIST_BLOCK_SIZE) > (TOTAL_SIZE/DSIZE) ? (TOTAL_SIZE/DSIZE) : (size / LIST_BLOCK_SIZE);
+  //int list_size = GET_LIST_SIZE(size);
+
+  int list_size = size / 50;
   
-  /* Get the pointer to the first item on the list that fits */
-  current_block = (char*)GET(heap_listp + (list_size * WSIZE));/* TODO: MAKE MACRO */
-
-
-  //  for (; (int)temp_cur != 0 && GET_SIZE(HDRP(temp_cur)) < size; temp_cur = (char *)GET(temp_cur+WSIZE))
-  //temp_prev = temp_cur;
-
-  int csize = 0;
-
-
-
-  //if the free list is empty 
-  if(current_block == 0){
-    //set free list pointer to point to this block.
-    PUT(heap_listp + (list_size * WSIZE), (int)bp);	
-    //set this blocks previous free block poitner to 0 indicating it is first on the list.
-    PUT(bp, 0); 
-    //set this blocks next free block pointer to 0 indicating it is last on the list.  
-    PUT(bp+WSIZE, 0);
-  }
-
-  
-  while((csize = GET_SIZE(HDRP(current_block))) > 0)
+  if(list_size == 81)
     {
-      printf("csize: %d", csize);
-      if(csize != 0 && csize >= size)
-	{
-	  
-	}
-      current_block = (char *)GET(current_block + WSIZE);
+      printf("here");
     }
 
-  /* Walk through the list starting at current block and find a place where the block can fit*/
-  //  for(; GET_SIZE(HDRP(bp)) > 0; current_block = NEXT_BLKP(current_block))
-  //  {
-    /* If the block is greater than the current_block get the block before it*/
-    //if(GET_SIZE(current_block) >= size)
-  //    {
-  //next_block = current_block;
-  //  break;
-      //}    
-      //  }
-
-  /* Save previous block */
-      //  previous_block = PREV_BLKP(next_block);
-
-  /* Set next_block's previous block to be bp */
-      //  PUT(PREV_BLKP(next_block), (int)(bp));
-
-  /* Set previous_block's next block to be bp */
-      //  PUT(NEXT_BLKP(previous_block), (int)(bp));
-
-  /* Set bp's next to be next_block */
-      //  PUT(NEXT_BLKP(bp), (int)(next_block));
-
-  /* Set bp's previous to be previous_block */
-      //  PUT(PREV_BLKP(bp), (int)(previous_block));
+  if(list_size > 83)
+    list_size = 83;
   
+  /* Get the pointer to the first item on the list that fits */
+  //current_block = (char*)GET(heap_listp + (list_size * WSIZE));/* TODO: MAKE MACRO */
+  current_block = GET_LISTP(list_size);
+
+  if(current_block == 0){
+    PUT(heap_listp + (list_size * WSIZE), (int)bp); /* Set a pointer to this block */
+
+    PUT(bp, 0); /* Make HEAD of the Linked list  */
+    PUT(bp+WSIZE, 0); /* Make TAIL of the linked list */
+  }
+  else
+    {
+      /* previous block is set to the first item on the list  */
+      previous_block = GET_LISTP(list_size);
+	//(char *)GET(heap_listp + (list_size * WSIZE));/* First item on the list 									
+
+      for (; (int)current_block != 0 && GET_SIZE(HDRP(current_block)) < size; current_block = NEXT_FREE(current_block))
+	{
+	  previous_block = current_block;
+	}
+
+      /* Save next block */
+      /* Gets the integer value for the pointer to the next block */
+      next_block = (char *)GET(previous_block + WSIZE);//NEXT_FREE(previous_block);//previous_block + WSIZE; //NEXT_FREE(previous_block);
+
+      /* Set the previous' next to the new node  */
+      PUT(previous_block + WSIZE, (int)bp);
+
+      if(((int)next_block) != 0)
+	{
+	  PUT(next_block, (int)bp);
+	}
+
+      /* Place current node between the previous node and the next node  */
+      PUT(bp, (int)previous_block);
+      PUT(bp+WSIZE, (int)next_block);
+    }
 }
 
 static void remove_from_free(void* bp)
 {
-  
-  
+  int list_size;
+  int size = GET_SIZE(HDRP(bp));
 
+  list_size = size / 50;
+
+  if((int)bp == -155534944)
+    {
+      //void* s = GET_LISTP(list_size);
+      printf("test: %x\n", bp);
+      printf("list_size: %d\n", list_size);
+      printf("size: %d\n", size);
+      //exit(0);
+    }
+  if(list_size > 83)
+    {
+      list_size = 83;
+    }
+
+  /* previous_node -> 0 and next_node -> 0 : NO ITEMS ON LIST BESIDES THIS ONE*/
+  if(GET(bp) == 0 && GET(bp+WSIZE) == 0)
+    {
+      PUT(heap_listp+(list_size * WSIZE), 0);
+    }
+  else if(GET(bp) == 0 && GET(bp+WSIZE) != 0)    /* If the node is the head of the linked list  */
+    {
+      /* Set next as the head of the list */
+      PUT(heap_listp+(list_size * WSIZE), (int)GET(bp+WSIZE));
+      
+      PUT(NEXT_FREE(bp), 0); /* Set previous to null or zero in this case */
+    }
+  else if(GET(bp) != 0 && GET(bp+WSIZE) == 0)    /* If the node is the tail of the linked list */
+    {
+      /* Set the previous node as the tail of the list */
+      /* Simply skip the node that is being removed */
+      PUT(PREV_FREE(bp) + WSIZE, 0);
+    }
+  else                                           /* The node is surrounded by two valid free nodes  */
+    {
+      /* Skip the node that is being removed */
+      /* Set previous node's next to current's next */
+      PUT(PREV_FREE(bp) + WSIZE, (int)GET(bp+WSIZE));
+
+      /*HERE*/      
+      /* Set current-> next-> previous to current->previous */
+      PUT(NEXT_FREE(bp), (int)GET(bp));
+    }
 }
 
 static void* coalesce(void* bp) 
@@ -254,15 +243,21 @@ static void* coalesce(void* bp)
   size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));   
   size_t size = GET_SIZE(HDRP(bp));    
 
+  if((int)bp == -15555537048)
+    {
+      int here = 0;
+    }
   if (prev_alloc && next_alloc) 
     {
-      printf("here");
-      add_to_list(bp);
-      //mm_check(); 
+      add_to_free(bp);
+      
       return bp; 
     }  
  
   else if (prev_alloc && !next_alloc) {
+
+    remove_from_free(NEXT_BLKP(bp));
+
     size += GET_SIZE(HDRP(NEXT_BLKP(bp)));  
     PUT(HDRP(bp), PACK(size, 0));     
     PUT(FTRP(bp), PACK(size ,0)); 
@@ -272,6 +267,8 @@ static void* coalesce(void* bp)
   }    
   else if (!prev_alloc && next_alloc) 
     {      
+
+      remove_from_free(PREV_BLKP(bp)); 
       size += GET_SIZE(HDRP(PREV_BLKP(bp)));
       PUT(FTRP(bp), PACK(size, 0));   
       PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));    
@@ -280,7 +277,9 @@ static void* coalesce(void* bp)
       return(PREV_BLKP(bp));
     }   
   else
-    {                                           
+    {
+      remove_from_free(NEXT_BLKP(bp));      
+      remove_from_free(PREV_BLKP(bp));                                        
       size += GET_SIZE(HDRP(PREV_BLKP(bp))) +
 	GET_SIZE(FTRP(NEXT_BLKP(bp)));  
       PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));   
@@ -317,15 +316,46 @@ static void *extend_heap(size_t words)
 static void* find_fit(size_t asize) 
 {   
   void* bp;   
+  int tsize = 0;
+  int list_size = asize / 50;
+
+  if(list_size > 83)
+    list_size = 83; 
+
+  /* DEFINE THIS HARDCODED NUMBER  */
+  while(list_size <= 83)
+    {
+      /* Search for the best fit on the list that it belongs to */
+      //for(bp = GET_LISTP(list_size); (int)bp != 0 && GET_SIZE(HDRP(bp)) > 0; bp = (char *)GET(bp+WSIZE))//NEXT_FREE(bp))
+
+      bp = GET_LISTP(list_size); 
+      
+      int csize;
+      if((int)bp != 0)
+	csize = GET_SIZE(HDRP(bp));
+
+      while((int)bp != 0 && csize > 0)
+	{
+	  if (!GET_ALLOC(HDRP(bp)) && asize <= GET_SIZE(HDRP(bp)))
+	    {
+	      return bp;
+	    }
+	  bp = NEXT_FREE(bp);
+	  
+	  if((int)bp != 0)
+	    csize = GET_SIZE(HDRP(bp));
+	}
+      list_size++;
+    }
 
   /* first fit search */ 
-  for(bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) 
-    {   
-      if(!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp))))
-	{
-	  return bp;
-	}  
-    } 
+  //for(bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) 
+  //{   
+  //  if(!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp))))
+  //	{
+  //	  return bp;
+  //	}  
+  //} 
   return NULL; /* no fit */ 
 }
 
@@ -334,17 +364,20 @@ static void place(void* bp, size_t asize)
   size_t csize = GET_SIZE(HDRP(bp));   
   if((csize - asize) >= (DSIZE + OVERHEAD)) 
     {  
-      /* if new free block */  
+      remove_from_free(bp);
+                                                 /* if new free block */  
       PUT(HDRP(bp), PACK(asize, 1));             /* would be at least */    
       PUT(FTRP(bp), PACK(asize, 1));             /* as big as min */    
       bp = NEXT_BLKP(bp);                        /* block size, split */ 
       PUT(HDRP(bp), PACK(csize-asize, 0)); 
       PUT(FTRP(bp), PACK(csize-asize, 0));   
+      add_to_free(bp);
     }  
   else 
     {                                            /* else, do not split */   
       PUT(HDRP(bp), PACK(csize, 1));  
       PUT(FTRP(bp), PACK(csize, 1)); 
+      remove_from_free(bp);
     }
 }
 
@@ -367,29 +400,58 @@ void splitList(unsigned int* list_ptr, int splitSize, int blockSize)
  */
 int mm_init(void)
 {
-  //if((free_list16 = mem_sbrk(200)) != (void*)-1)
-  //{
-  //  splitList(free_list16, 16, 200);
-  //}
 
-
-  /* create the initial empty heap – four words */    
-  if ((heap_listp = mem_sbrk(4*WSIZE)) == NULL)
+  /* Create the initial empty heap */
+  if ((heap_listp = mem_sbrk(88*WSIZE)) == (void *)-1)//create block for prologue and epilogue header. 
     return -1;
 
-  PUT(heap_listp, 0);                     
+  PUT(heap_listp, 0); /* Alignment padding */
 
-  /* alignment padding */     
-  PUT(heap_listp+WSIZE, PACK(OVERHEAD, 1));  /* prologue header */    
-  PUT(heap_listp+DSIZE, PACK(OVERHEAD, 1));  /* prologue footer */     
-  PUT(heap_listp+WSIZE+DSIZE, PACK(0, 1));   /* epilogue header */     
-  heap_listp += DSIZE;  /* move heap_listp past prologue's header */    
+  PUT(heap_listp + (WSIZE), PACK(43*DSIZE, 1)); /* Prologue header */
 
-  /* extend the empty heap with a free block of CHUNKSIZE bytes */    
+  int i;
+  for(i = 2; i < 86; i++) {
+    PUT(heap_listp + (i*WSIZE), 0); /* initialize free pointers (one for every increment of 50 bytes*/
+  }
+
+  PUT(heap_listp + (86*WSIZE), PACK(43*DSIZE, 1)); /* Prologue footer */
+  PUT(heap_listp + (87*WSIZE), PACK(0, 1)); /* Epilogue header */
+  heap_listp += (2*WSIZE);// increase heap_listp to point to prologue. 
+  //global_minlist = 100; // initialize global_minlist to indicate no free blocks
+  //free_count = 0;  //set free count to 0 to signify no free blocks.  
+
+  /* Extend the empty heap with a free block of CHUNKSIZE bytes */
   if (extend_heap(CHUNKSIZE/WSIZE) == NULL)
     return -1;
 
-  return 0;
+  return 0; 
+
+  /* create the initial empty heap – four words */    
+  //if ((heap_listp = mem_sbrk(TOTAL_SIZE)) == NULL)
+  //{
+  //  return -1;
+  //}
+
+  //PUT(heap_listp, 0);  /* alignment padding */     
+
+  //PUT(heap_listp+WSIZE, PACK(FREE_SIZE, 1));  /* prologue header */
+  //PUT(heap_listp+(FREE_SIZE/DSIZE), PACK(FREE_SIZE, 1));  /* prologue footer */     
+
+  /* Make the pointers for the lists */
+  //int i = 2; 
+  //for(; i < (FREE_SIZE/DSIZE); i++)
+  //{
+  //  PUT(heap_listp+(i*DSIZE), 0); /* Initialize to being free because it's for the free lists */
+  //}
+
+  //PUT(heap_listp+(FREE_SIZE/DSIZE)+WSIZE, PACK(0, 1));   /* epilogue header */     
+  //heap_listp += DSIZE;  /* move heap_listp past prologue's header */    
+
+  /* extend the empty heap with a free block of CHUNKSIZE bytes */    
+  //if (extend_heap(CHUNKSIZE/WSIZE) == NULL)
+  //return -1;
+
+  //return 0;
 }
 
 void* mm_malloc(size_t size) 
@@ -418,7 +480,6 @@ void* mm_malloc(size_t size)
     return NULL;   
 
   place(bp, asize);   
-
 
   return bp;
 }
@@ -451,77 +512,77 @@ void mm_free(void *ptr)
   coalesce(ptr);
 }
 
-/*
- * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
- */
-void *mm_realloc(void *ptr, size_t size)
-{
-    void *oldptr = ptr;
-    size_t old_size = GET_SIZE(HDRP(ptr));
-    void *newptr;
-    size_t copySize;
-    char* bp;
-    size_t extendsize; /* amount to extend heap if no fit */
+/* /\* */
+/*  * mm_realloc - Implemented simply in terms of mm_malloc and mm_free */
+/*  *\/ */
+/* void *mm_realloc(void *ptr, size_t size) */
+/* { */
+/*     void *oldptr = ptr; */
+/*     size_t old_size = GET_SIZE(HDRP(ptr)); */
+/*     void *newptr; */
+/*     size_t copySize; */
+/*     char* bp; */
+/*     size_t extendsize; /\* amount to extend heap if no fit *\/ */
 
-    if(size == 0)
-      {
-	mm_free(ptr);
-	return NULL;
-      }
-    if(ptr == NULL)
-      {
-	newptr = mm_malloc(size);
-      }
-    else 
-      {
-	/* Allocate the new larger size */
-	size_t asize; /* Adjusted block size */
+/*     if(size == 0) */
+/*       { */
+/* 	mm_free(ptr); */
+/* 	return NULL; */
+/*       } */
+/*     if(ptr == NULL) */
+/*       { */
+/* 	newptr = mm_malloc(size); */
+/*       } */
+/*     else  */
+/*       { */
+/* 	/\* Allocate the new larger size *\/ */
+/* 	size_t asize; /\* Adjusted block size *\/ */
 	
-	if(size <= 0)
-	  bp = NULL;
+/* 	if(size <= 0) */
+/* 	  bp = NULL; */
 
-	/* Adjust block size to include overhead and alignment requirements */
-	if(size <= DSIZE)
-	  asize = DSIZE + OVERHEAD;
-	else
-	  asize = DSIZE * ((size + (OVERHEAD) + (DSIZE-1)) / DSIZE);
+/* 	/\* Adjust block size to include overhead and alignment requirements *\/ */
+/* 	if(size <= DSIZE) */
+/* 	  asize = DSIZE + OVERHEAD; */
+/* 	else */
+/* 	  asize = DSIZE * ((size + (OVERHEAD) + (DSIZE-1)) / DSIZE); */
 	
-	/* Search the free list for a fit */
-	if((bp = find_fit(asize)) != NULL)
-	  {
-	    place(bp, asize);
-	  }
+/* 	/\* Search the free list for a fit *\/ */
+/* 	if((bp = find_fit(asize)) != NULL) */
+/* 	  { */
+/* 	    place(bp, asize); */
+/* 	  } */
 
-	/* If no fit found, get more memory and place block there */
-	else
-	  {
-	    extendsize = MAX(asize, CHUNKSIZE);
+/* 	/\* If no fit found, get more memory and place block there *\/ */
+/* 	else */
+/* 	  { */
+/* 	    extendsize = MAX(asize, CHUNKSIZE); */
 	   
-	    if((bp = extend_heap(extendsize/WSIZE)) == NULL)
-	      return NULL;
+/* 	    if((bp = extend_heap(extendsize/WSIZE)) == NULL) */
+/* 	      return NULL; */
 	    
-	    /* bp will be set the address of the new allocated larger block */
-	    place(bp, asize);
-	  }
-	newptr = bp;
+/* 	    /\* bp will be set the address of the new allocated larger block *\/ */
+/* 	    place(bp, asize); */
+/* 	  } */
+/* 	newptr = bp; */
 
-	copySize = old_size - SIZE_T_SIZE;
-	if (size < copySize)
-	  copySize = size;
-	memcpy(newptr, oldptr, copySize);
+/* 	copySize = old_size - SIZE_T_SIZE; */
+/* 	if (size < copySize) */
+/* 	  copySize = size; */
+/* 	memcpy(newptr, oldptr, copySize); */
 
-	/* Free the memory from the old block */
-	//mm_free(oldptr);
-	size_t size = GET_SIZE(HDRP(ptr));
-	PUT(HDRP(ptr), PACK(size, 0));
-	PUT(FTRP(ptr), PACK(size, 0));
-	coalesce(ptr);
-      }
-    //mm_check();
-    return newptr;
-}
+/* 	/\* Free the memory from the old block *\/ */
+/* 	//mm_free(oldptr); */
+/* 	size_t size = GET_SIZE(HDRP(ptr)); */
+/* 	PUT(HDRP(ptr), PACK(size, 0)); */
+/* 	PUT(FTRP(ptr), PACK(size, 0)); */
+/* 	coalesce(ptr); */
+/*       } */
+/*     //mm_check(); */
+/*     return newptr; */
+/* } */
 
-/*
+
 void *mm_realloc(void *ptr, size_t size)
 {
     void *oldptr = ptr;
@@ -538,7 +599,7 @@ void *mm_realloc(void *ptr, size_t size)
     mm_free(oldptr);
     return newptr;
 }
-*/
+
 
 
 
